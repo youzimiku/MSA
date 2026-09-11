@@ -1521,6 +1521,9 @@ const TIPS = {
   charType: {'SC':'关键特性（Safety/Critical）：影响安全法规或功能的关键尺寸，须全量覆盖 MSA 监控','CC':'重要特性（Critical Characteristic）：影响装配/性能/客户要求的重要特性，纳入周期 MSA','普通':'一般特性：非特殊特性，按量具风险管理需要开展 MSA'},
   status2: {'启用':'基础数据生效，可用于计划创建','停用':'基础数据停用，不再参与选择'}
 };
+/* 分析方法 code → 名称（大小写不敏感，被测参数维护页检验方法展示用） */
+const STRIP_PAREN=(s)=>String(s||'').replace(/（[^）]*）/g,'').replace(/\([^)]*\)/g,'');
+const METHOD_NAME=(code)=>{ const d=Store.get(); const m=(d.anMethods||[]).find(x=>String(x.code).toLowerCase()===String(code||'').toLowerCase()); return STRIP_PAREN(m?m.name:code); };
 function verdictColor(c){ if(!c) return 'default'; if(c.indexOf('不可接受')>=0) return 'red'; if(c.indexOf('有条件')>=0||c.indexOf('边缘')>=0||c.indexOf('较理想')>=0) return 'orange'; if(c.indexOf('可接受')>=0||c.indexOf('优秀')>=0||c.indexOf('理想')>=0||c.indexOf('好')>=0) return 'green'; return ENUM.verdictTagColor[c]||'default'; }
 
 /* 角色权限：哪些动作允许 */
@@ -2427,7 +2430,7 @@ function InstGroupPage(){
     </Space>},
     {title:'组编码', dataIndex:'id', width:90, render:(v,r)=><span className="row-link mono" onClick={()=>setDetail(r)}>{v}</span>},
     {title:'组名称', dataIndex:'name', width:180, ellipsis:true},
-    {title:'组类型', width:110, render:(_,r)=><Tag color={(r.type||'inst')==='kappa'?'purple':'blue'} style={{marginRight:0}}>{(r.type||'inst')==='kappa'?'卡帕人员组':'测量器具组'}</Tag>},
+    {title:'组类型', width:110, render:(_,r)=><Tag color={(r.type||'inst')==='kappa'?'purple':'blue'} style={{marginRight:0}}>{(r.type||'inst')==='kappa'?'kappa人员组':'测量器具组'}</Tag>},
     {title:'检验周期(月)', width:110, render:(_,r)=><span className="mono">{r.calCycle||12}</span>},
     {title:'上次执行时间', dataIndex:'lastExec', width:115, render:v=><span className="mono tiny">{v||'暂无'}</span>},
     {title:'下次提醒时间', dataIndex:'nextRemind', width:115, render:v=><span className="mono tiny">{v||'暂无'}</span>},
@@ -2440,7 +2443,7 @@ function InstGroupPage(){
     <Panel title="查询条件">
       <Space wrap>
         <Input.Search allowClear placeholder="组编码 / 组名称 / 说明" style={{width:140}} value={kw} onChange={e=>setKw(e.target.value)}/>
-        <Select allowClear placeholder="组类型" style={{width:140}} value={fType} options={[{value:'inst',label:'测量器具组'},{value:'kappa',label:'卡帕人员组'}]} onChange={setFType}/>
+        <Select allowClear placeholder="组类型" style={{width:140}} value={fType} options={[{value:'inst',label:'测量器具组'},{value:'kappa',label:'kappa人员组'}]} onChange={setFType}/>
         <Select allowClear placeholder="检验周期(月)" style={{width:140}} value={fCycle} options={[6,12,24].map(v=>({value:String(v),label:v+' 个月'}))} onChange={setFCycle}/>
         <span className="tiny">共 {rows.length} 组</span>
       </Space>
@@ -2474,7 +2477,7 @@ function InstGroupModal({value,onClose}){
   },[]);
   const onOk=async()=>{
     const vals=await form.validateFields();
-    if((vals.type||'inst')==='kappa' && !((vals.members||[]).length) && !(vals.posts&&vals.posts.length)){ toast.warn('卡帕人员组请至少维护岗位或成员'); return; }
+    if((vals.type||'inst')==='kappa' && !((vals.members||[]).length) && !(vals.posts&&vals.posts.length)){ toast.warn('kappa人员组请至少维护岗位或成员'); return; }
     mut(s=>{
       if(isEdit){ const g=s.instGroups.find(x=>x.id===value.record.id); Object.assign(g,vals); g.editor=s.me.name; g.editorDate=TODAY; logAction(s.me.name,'编辑器具组',g.id+' '+g.name,'更新器具组信息'); }
       else { vals.editor=s.me.name; vals.editorDate=TODAY; vals.records=[]; s.instGroups.push(vals); logAction(s.me.name,'新增器具组',vals.id+' '+vals.name,'新建器具组'); }
@@ -2487,7 +2490,7 @@ function InstGroupModal({value,onClose}){
       <Row gutter={12}>
         <Col span={8}><Form.Item name="id" label="组编码" rules={[{required:true}]}><Input disabled={isEdit}/></Form.Item></Col>
         <Col span={16}><Form.Item name="name" label="组名称" rules={[{required:true}]}><Input/></Form.Item></Col>
-        <Col span={6}><Form.Item name="type" label="组类型" rules={[{required:true}]}><Select options={[{value:'inst',label:'测量器具组'},{value:'kappa',label:'卡帕人员组'}]} onChange={v=>setGType(v||'inst')}/></Form.Item></Col>
+        <Col span={6}><Form.Item name="type" label="组类型" rules={[{required:true}]}><Select options={[{value:'inst',label:'测量器具组'},{value:'kappa',label:'kappa人员组'}]} onChange={v=>setGType(v||'inst')}/></Form.Item></Col>
         <Col span={6}><Form.Item name="calCycle" label="检验周期(月)" rules={[{required:true}]}><Input type="number"/></Form.Item></Col>
         <Col span={6}><Form.Item name="lastExec" label="上次执行时间"><Input placeholder="YYYY-MM-DD"/></Form.Item></Col>
         <Col span={6}><Form.Item name="nextRemind" label="下次提醒时间"><Input placeholder="YYYY-MM-DD"/></Form.Item></Col>
@@ -2545,12 +2548,12 @@ function InstGroupDetail({rec,onClose,onEdit}){
     {title:'岗位', dataIndex:'post', width:150, render:v=><Tag color="purple" style={{marginRight:0}}>{v||'—'}</Tag>}
   ];
   const kappaMembers=(rec.members||[]).map((m,ix)=>({ix,...m}));
-  return <Drawer title={<Space>{rec.id} {rec.name}<Tag color={(rec.type||'inst')==='kappa'?'purple':'blue'} style={{marginRight:0}}>{(rec.type||'inst')==='kappa'?'卡帕人员组':'测量器具组'}</Tag></Space>} width={980} open onClose={onClose}
+  return <Drawer title={<Space>{rec.id} {rec.name}<Tag color={(rec.type||'inst')==='kappa'?'purple':'blue'} style={{marginRight:0}}>{(rec.type||'inst')==='kappa'?'kappa人员组':'测量器具组'}</Tag></Space>} width={980} open onClose={onClose}
     extra={<Space>{canDo(d.me.role,'edit')&&<Button size="small" type="link" onClick={()=>onEdit(rec)}>编辑</Button>}</Space>}>
     <Descriptions column={3} size="small" bordered items={[
       {key:'组编码', label:'组编码', children:<span className="mono">{rec.id}</span>},
       {key:'组名称', label:'组名称', children:rec.name},
-      {key:'组类型', label:'组类型', children:(rec.type||'inst')==='kappa'?'卡帕人员组':'测量器具组'},
+      {key:'组类型', label:'组类型', children:(rec.type||'inst')==='kappa'?'kappa人员组':'测量器具组'},
       {key:'检验周期', label:'检验周期', children:rec.calCycle?rec.calCycle+' 个月':'12 个月'},
       {key:'上次执行时间', label:'上次执行时间', children:rec.lastExec||'暂无'},
       {key:'下次提醒时间', label:'下次提醒时间', children:rec.nextRemind||'暂无'},
@@ -3364,7 +3367,7 @@ function CharPage(){
   const rows=(d.characteristics||[]).filter(r=>(!kw || (r.id+r.name+(r.partName||'')+(r.processName||'')+(r.partNo||'')).includes(kw)))
     .filter(r=>!fType || r.type===fType).filter(r=>!fStatus || r.status===fStatus)
     .filter(r=>!fQPlant || r.plant===fQPlant).filter(r=>!fQSub || r.subplant===fQSub);
-  const methodView=(r)=>{ const ms=r.methods||[]; return ms.length? <Space size={2} wrap>{ms.map(m=><Tag key={m.method} color="blue" style={{marginRight:0}}>{m.method}</Tag>)}</Space> : <span className="tiny">—</span>; };
+  const methodView=(r)=>{ const ms=r.methods||[]; return ms.length? <Space size={2} wrap>{ms.map(m=><Tag key={m.method} color="blue" style={{marginRight:0}}>{METHOD_NAME(m.method)}</Tag>)}</Space> : <span className="tiny">—</span>; };
   const cols=[
     {title:'操作', width:150, fixed:'left', render:(_,r)=><Space size={4}>
       <Button size="small" type="link" onClick={()=>setDetail(r)}>查看</Button>
@@ -3497,7 +3500,7 @@ function CharDetail({rec,onClose,onEdit}){
     <div className="grp-label">检验方法（{ms.length}）</div>
     <Table size="small" rowKey="method" pagination={false} dataSource={ms}
       columns={[
-        {title:'方法', dataIndex:'method', width:110, render:v=><Tag color="blue">{v}</Tag>},
+        {title:'方法', dataIndex:'method', width:150, render:v=><Tag color="blue">{METHOD_NAME(v)}</Tag>},
         {title:'对应检验标准', dataIndex:'standardId', render:(v)=>{ const st=(d.standards||[]).find(s=>s.id===v); return <span className="mono">{v||'未指定'}{st&&st.name?(' · '+st.name):''}</span>; }}
       ]}/>
   </Drawer>;
@@ -3546,9 +3549,9 @@ function CharModal({value,onClose}){
         <Col span={6}><Form.Item name="status" label="状态"><Select options={[{value:'启用',label:'启用'},{value:'停用',label:'停用'}]}/></Form.Item></Col>
         <Col span={24}>
           <div className="tiny" style={{marginBottom:4}}>检验方法（每个方法可指定对应检验标准）</div>
-          <Checkbox.Group value={selMethods} options={['GRR','KAPPA','linear','stability','cgcgk'].map(m=>({value:m,label:m}))} onChange={(v)=>{setSelMethods(v);}}/>
+          <Checkbox.Group value={selMethods} options={['GRR','KAPPA','linear','stability','cgcgk'].map(m=>({value:m,label:METHOD_NAME(m)}))} onChange={(v)=>{setSelMethods(v);}}/>
           {selMethods.map(m=><div key={m} style={{display:'flex',alignItems:'center',marginTop:6}}>
-            <Tag color="blue" style={{width:90,textAlign:'center',marginRight:8}}>{m}</Tag>
+            <Tag color="blue" style={{width:150,textAlign:'center',marginRight:8}}>{METHOD_NAME(m)}</Tag>
             <Select allowClear style={{width:380}} placeholder="选择对应检验标准" options={(d.standards||[]).map(s=>({value:s.id,label:s.id+' '+s.name}))}
               value={form.getFieldValue('std_'+m)} onChange={(v)=>form.setFieldsValue({['std_'+m]:v})}/>
           </div>)}
@@ -3582,7 +3585,7 @@ function SamplingPage(){
   const mergeCols=[
     {title:'操作', width:90, fixed:'left', render:(_,r)=><Button size="small" type="link" onClick={()=> r.rule? setRModal({record:r.rule}) : setMModal({record:r})}>编辑</Button>},
     {title:'方法代码', dataIndex:'code', width:110, render:v=><span className="mono">{v}</span>},
-    {title:'方法名称', dataIndex:'name', width:210},
+    {title:'方法名称', dataIndex:'name', width:210, render:v=><span>{STRIP_PAREN(v)}</span>},
     {title:'是否需要取样', dataIndex:'needSample', width:100},
     {title:'可否合并取样', dataIndex:'canMerge', width:100},
     {title:'合并对象', dataIndex:'mergeWith', width:90, render:v=><span>{v||'—'}</span>},
@@ -3606,7 +3609,7 @@ function SamplingPage(){
   const judgeCols=[
     {title:'操作', width:90, fixed:'left', render:(_,r)=><Button size="small" type="link" onClick={()=>setJModal({record:r})}>编辑</Button>},
     {title:'规则编号', dataIndex:'id', width:100, render:v=><span className="mono">{v}</span>},
-    {title:'所属方法', dataIndex:'method', width:110, render:v=><span className="mono">{v}</span>},
+    {title:'所属方法', dataIndex:'method', width:120, render:v=><span>{METHOD_NAME(v)}</span>},
     {title:'判定条件', dataIndex:'condition', width:320, ellipsis:true},
     {title:'判定结论', dataIndex:'verdict', width:150},
     {title:'说明', dataIndex:'note', width:460, ellipsis:true}
